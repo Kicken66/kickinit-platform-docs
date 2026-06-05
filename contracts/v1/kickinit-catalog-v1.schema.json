@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kickinit.se/schemas/catalog/v1",
+  "title": "KickinIT InApp Catalog v1",
+  "type": "object",
+  "required": ["version", "generated_at", "products"],
+  "properties": {
+    "version": { "const": "1.0.0" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "products": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/InAppProduct" }
+    }
+  },
+  "$defs": {
+    "InAppProduct": {
+      "type": "object",
+      "required": [
+        "slug", "name", "price_sek", "currency",
+        "active", "in_app_only", "effect_type", "effect_payload", "position"
+      ],
+      "properties": {
+        "slug": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "price_sek": { "type": "integer", "minimum": 0 },
+        "currency": { "const": "SEK" },
+        "active": { "type": "boolean" },
+        "in_app_only": { "type": "boolean" },
+        "position": { "type": "integer", "minimum": 0 },
+        "effect_type": {
+          "enum": ["provision_plan", "add_rounds", "extend_days", "grant_feature"]
+        },
+        "effect_payload": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "effect_type": { "const": "provision_plan" } } },
+          "then": {
+            "properties": {
+              "effect_payload": {
+                "type": "object",
+                "required": ["duration_days"],
+                "properties": {
+                  "duration_days": { "type": "integer", "minimum": 1 },
+                  "included_rounds": { "type": ["integer", "null"], "minimum": 0 },
+                  "entitlements": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "effect_type": { "const": "add_rounds" } } },
+          "then": {
+            "properties": {
+              "effect_payload": {
+                "type": "object",
+                "required": ["rounds"],
+                "properties": { "rounds": { "type": "integer", "minimum": 1 } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "effect_type": { "const": "extend_days" } } },
+          "then": {
+            "properties": {
+              "effect_payload": {
+                "type": "object",
+                "required": ["days"],
+                "properties": { "days": { "type": "integer", "minimum": 1 } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "effect_type": { "const": "grant_feature" } } },
+          "then": {
+            "properties": {
+              "effect_payload": {
+                "type": "object",
+                "required": ["feature"],
+                "properties": {
+                  "feature": {
+                    "enum": ["results_email", "member_lookup", "paper_print"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
