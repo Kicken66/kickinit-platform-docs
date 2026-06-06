@@ -1,8 +1,9 @@
 # KickinIT × Tipspromenad — Kontrakt v1
 
 Frusna API- och dataformatkontrakt mellan **Launchpad** (kickinit.se, webshop),
-**Tipspromenad-appen** (app.kickinit.se, admin & spel) och **CRM Suite**
-(master för produktkatalog och Stripe).
+**Hub** (plattformens master för org + entitlements),
+**Tipspromenad-appen** (app.kickinit.se, admin & spel),
+**EventIT-appen** och **CRM Suite** (master för produktkatalog och Stripe).
 
 ## Varför finns dessa?
 
@@ -10,6 +11,20 @@ Apparna körs på olika tech-stackar och kan inte dela kod. Istället
 disciplinerar vi integrationen via versionerade kontrakt. **Inget i v1
 får brytas** — om ett kontrakt måste ändras bakåtinkompatibelt skapas
 v2 sida vid sida, och v1 lever vidare tills båda apparna har migrerat.
+
+## Deployment-modell
+
+Varje app har en **egen Lovable Cloud-instans** (egen Supabase). Ingen
+delad databas. Cross-app-integration sker via Hubs publika endpoints:
+
+- **`/jwks.json`** — Hub publicerar sina JWT-signeringsnycklar; övriga
+  appar verifierar SSO-tokens mot denna.
+- **`org-info`** edge function — produkt-apparna hämtar org + entitlements
+  från Hub. Se `contracts/v1/org-info.md`.
+- **`apply-purchase`** edge function — Launchpad/Stripe webhookar Hub
+  vid köp; entitlements uppdateras i Hubs databas.
+
+Se `adr/0002-instance-per-app.md` för bakgrund och konsekvenser.
 
 ## Innehåll
 
@@ -24,16 +39,17 @@ Kontrakten är av två slag:
 | Fil | Syfte |
 |---|---|
 | `provision-private-org.md` | Launchpad → Tipspromenad: skapa privatkund-org efter köp |
-| `apply-purchase.md` | Launchpad → Tipspromenad: in-app-tillköp (rundor, dagar, entitlements) |
+| `apply-purchase.md` | Launchpad → Hub: in-app-tillköp (rundor, dagar, entitlements) |
+| `org-info.md` | Tipspromenad/EventIT → Hub: hämta org + entitlements för inloggad user |
 | `inapp-products.md` | Tipspromenad → Launchpad: hämta katalog för in-app-shop |
-| `sso-from-launchpad.md` | Launchpad → Tipspromenad: "Öppna admin"-flöde via magic link |
+| `sso-from-launchpad.md` | Launchpad → Hub: "Öppna admin"-flöde via magic link |
 | `onboarding-status.md` | Launchpad → Tipspromenad: status-poll efter provisionering |
 
 ### Tvärgående kontrakt
 
 | Fil | Syfte |
 |---|---|
-| `stripe-checkout-integration.md` | Hur CRM Suite, Tipspromenad och Launchpad delar Stripe-ansvar |
+| `stripe-checkout-integration.md` | Hur CRM Suite, Hub och Launchpad delar Stripe-ansvar |
 
 ### Scheman & tokens
 
