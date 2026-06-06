@@ -1,6 +1,6 @@
 # Contract: onboarding-status
 
-**Version: 1.0.0** · **Status: DRAFT**
+**Version: 1.0.1-test** · **Status: DRAFT**
 **Direction:** Launchpad → Tipspromenad
 **Endpoint:** `GET {TIPSPROMENAD_FUNCTIONS_URL}/onboarding-status?organization_id=<uuid>`
 
