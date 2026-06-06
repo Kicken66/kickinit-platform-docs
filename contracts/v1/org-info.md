@@ -1,8 +1,15 @@
 # Contract — `org-info` (Hub → produkt-appar)
 
-**Version:** 1.0.0 (DRAFT — fryses när Hub implementerar)
-**Riktning:** Tipspromenad / EventIT → Hub
+**Version:** 1.0.0  
+**Datum:** 2026-06-06  
+**Riktning:** Tipspromenad / EventIT → Hub  
 **Endpoint:** `POST {HUB_FUNCTIONS_URL}/org-info`
+
+## Versionshistorik
+
+| Datum | Version | Ändring |
+|---|---|---|
+| 2026-06-06 | 1.0.0 | Första release. Hub-schema, JWKS-endpoint och `org-info` verifierade i produktion. DRAFT-tag borttagen. |
 
 ## Syfte
 
@@ -13,7 +20,7 @@ entitlements organisationen har köpt. Hub är master. Produkt-apparna
 
 ## Auth
 
-`Authorization: Bearer <hub_jwt>` — JWT utfärdat av Hub vid SSO. Verifieras
+`Authorization: Bearer <jwt>` — JWT utfärdat av Hub vid SSO. Verifieras
 av `org-info` med Hubs interna JWKS (samma instans), och kan separat
 verifieras av produkt-appen mot Hubs publika `/jwks.json`.
 
@@ -77,7 +84,7 @@ länk till Launchpad/onboarding.
 
 ## Felmodell
 
-Standardform: `{ "error": { "code": "<snake_case>", "message": "..." } }`.
+Standardform: `{ "error": { "code": "", "message": "..." } }`.
 
 | Kod | Betydelse |
 |---|---|
@@ -88,7 +95,13 @@ Standardform: `{ "error": { "code": "<snake_case>", "message": "..." } }`.
 
 ## Migration / introduktion
 
-Tas i bruk i Tipspromenad i en separat H.x-tranche **efter** att Hub har:
-1. JWKS-endpoint publik
-2. `org-info` deployad och stabil i Hubs produktionsinstans
-3. Minst en testorg seedad med matchande data mellan Hub och Tipspromenad
+Kontraktet är aktivt sedan 2026-06-06. Hub har:
+1. ✅ JWKS-endpoint publik (`/api/public/jwks.json`)
+2. ✅ `org-info` deployad och stabil i Hubs produktionsinstans
+3. ✅ `hub.*`-schema med organisationer, medlemskap och entitlements
+4. ✅ Minst en testorg seedad med matchande data
+
+Nästa steg för produkt-appar (Tipspromenad / EventIT):
+- Hämta org-info vid inloggning via SSO.
+- Cacha svaret enligt `cached_until`.
+- Använd `role` och `entitlements` för att styra UI och funktionsåtkomst.
