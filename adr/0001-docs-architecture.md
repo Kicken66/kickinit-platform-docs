@@ -1,7 +1,12 @@
 # ADR 0001 — Docs-arkitektur för KickinIT-plattformen
 
-**Status:** Accepted
+**Status:** Accepted (delvis ersatt av ADR-0002)
 **Datum:** 2026-06-05
+
+> **OBS:** Denna ADR antog att de tre apparna skulle dela en Supabase-instans
+> med ett schema per app. Det antagandet är **ersatt av ADR-0002**
+> (instance-per-app). Docs-arkitekturen (delade kontrakt i
+> `kickinit-platform-docs`, push via `docs-sync`) gäller fortfarande.
 
 ## Kontext
 
@@ -33,7 +38,8 @@ Hybrid:
 - Ingen automatisk lokal cache av docs-repot i Lovable-projekten →
   ingen drift-risk.
 - Skrivflöde går via edge-funktion → revisorbart i `docs_sync_log`.
-- Hub och EventIT återanvänder samma `docs-sync`-funktion + samma PAT när
-  de skapas.
+- Hub och EventIT återanvänder samma `docs-sync`-mönster, men med **egen**
+  `GITHUB_DOCS_PAT` per projekt (uppdaterat från originalet — se ADR-0002
+  om instance-per-app: varje app har egen Cloud-instans och egna secrets).
 - Submodule-ansatsen är **förbjuden** framöver — se denna ADR innan
   någon föreslår den igen.
