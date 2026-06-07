@@ -1,8 +1,8 @@
 Contract — sso-exchange (Hub ⇄ produkt-appar)
-Version: 0.1 DRAFT — föreslagen av Tipspromenad 2026-06-07
-Status: Väntar Hub-bekräftelse innan Tipspromenad implementerar /sso-from-hub
+Version: 1.0.0 — låst 2026-06-07
+Status: Stable. Hub har bekräftat alla öppna frågor (commit 35b8cc7 i status/hub.md).
 Riktning: produkt-app (server-side edge) → Hub
-Relaterat: contracts/v1/sso.md v1.0.0 (flöde A skissat, wire-format för exchange ospecificerat)
+Relaterat: contracts/v1/sso.md v1.0.0 (flöde A)
 
 Syfte
 Flöde A i sso.md: Hub utfärdar engångskod via /sso-issue och redirectar
@@ -20,8 +20,8 @@ Headers
 Content-Type: application/json
 X-Correlation-Id: <uuid>          # optional, ekas i felresponse
 Ingen Authorization-header. Autentiseringen sker via HMAC-signerad
-payload (se nedan). Detta hindrar att en stulen kod kan växlas in från
-fel app — bara den app som delar HMAC-secret med Hub kan signera.
+payload i body (se nedan). Detta hindrar att en stulen kod kan växlas in
+från fel app — bara den app som delar HMAC-secret med Hub kan signera.
 
 Body
 {
@@ -43,7 +43,7 @@ code	exakt strängen från /sso-issue-svaret, oförändrad
 app	"tipspromenad" eller "eventit" — måste matcha appen som anropar
 iat	unix-sekunder, nu
 exp	unix-sekunder, iat + ≤ 60s (Hub avvisar längre TTL)
-nonce	slumpad uuid v4, lagras av Hub i hub.sso_codes/audit för replay-skydd
+nonce	slumpad uuid v4, lagras av Hub i hub.sso_audit för replay-skydd
 code är redan en engångskod med 60s TTL från /sso-issue, men
 HMAC-payloadens TTL skyddar mot att samma signerade exchange-anrop
 replayas av en man-in-the-middle som snor token-fältet.
@@ -73,9 +73,9 @@ sso.md §"Token-shape"). Appen lagrar hub_jwt + expires_at i sin
 HubSessionProvider (sessionStorage) och kan därefter anropa
 /org-info direkt utan att gå via /sso-claim.
 
-org_id + role ingår så att appen kan visa rätt org i UI:t direkt
-efter callback utan extra round-trip till /org-info. Får utelämnas
-om Hub inte vill committa — appen klarar sig med bara hub_jwt.
+org_id + role returneras alltid (bekräftat av Hub) så att appen kan
+visa rätt org i UI:t direkt efter callback utan extra round-trip till
+/org-info.
 
 Felmodell
 Standardform: { "error": { "code": "...", "message": "...", "request_id": "..." } }
@@ -92,13 +92,27 @@ Status	Kod	När
 Tipspromenad mappar dessa direkt till klient-felen i HubSessionContext
 
 visar dem i debug-panelen på /super-admin/docs-sync.
+Audit
+sso-exchange skriver till samma tabell som /sso-claim:
+hub.sso_audit med en flow-discriminator-kolumn ("claim" | "exchange").
+Hub lägger till flow-kolumnen i samband med v1.0-deploy.
+
+Fält som loggas vid exchange:
+
+flow = "exchange"
+app (från payload)
+nonce (för replay-detection)
+code (engångskoden, hashad)
+hub_user_id, org_id, role (på success)
+error_code (på fel)
+request_id, created_at
 Secrets
 Symmetrisk HMAC-secret per app, delad mellan Hub och appen:
 
 Sida	Secret-namn	Värde
 Hub	TIPSPROMENAD_EXCHANGE_SECRET	Slumpad 32-byte b64-sträng
 Tipspromenad	HUB_EXCHANGE_SECRET	samma värde
-Föreslagen process:
+Process:
 
 Hub genererar värdet (openssl rand -base64 32) och lagrar som
 TIPSPROMENAD_EXCHANGE_SECRET.
@@ -106,8 +120,11 @@ Hub delar värdet med Tipspromenad-ägaren via säker kanal (1Password
 shared item eller motsvarande).
 Tipspromenad lägger in det som HUB_EXCHANGE_SECRET via Lovables
 secrets-UI.
-Rotation: båda sidor byter samtidigt; ingen overlap behövs eftersom
-exchange-anropet är synkront och kortlivat.
+Rotation (v1.0): Hård rotation i koordinerat fönster — båda sidor
+byter samtidigt. Exchange-anropet är synkront och kortlivat så
+overlap-fönster är onödigt. Zero-downtime-rotation (två aktiva
+secrets samtidigt) flyttas till v1.1 om operativt behov uppstår.
+
 Samma mönster appliceras för EventIT med
 EVENTIT_EXCHANGE_SECRET / HUB_EXCHANGE_SECRET (per-app secret på
 EventIT-sidan, per-app secret på Hub-sidan).
@@ -134,7 +151,7 @@ Tipspromenad edge `sso-from-hub`:
   3. POST {HUB}/functions/v1/sso-exchange  { token }
   4. På 200: lagrar { hub_jwt, expires_at } för klient,
      genererar magic_link mot lokala Supabase Auth (auth.admin.generateLink, type:"magiclink", email)
-  5. Returnerar { magic_link, hub_jwt, expires_at } till klient
+  5. Returnerar { magic_link, hub_jwt, expires_at, org_id, role } till klient
 
 Browser:
   - sessionStorage["kickinit.hubToken.v1"] = { jwt: hub_jwt, expires_at, ... }
@@ -177,25 +194,20 @@ curl -sS -X POST "https://yeyubjxotynuelcahwpy.supabase.co/functions/v1/sso-exch
 curl -sS -X POST "https://.../sso-exchange" -d "{\"token\":\"$P_B64.BADSIG\"}"
 # →
 # {"error":{"code":"invalid_token","message":"Signature mismatch","request_id":"..."}}
-Öppna frågor till Hub-teamet
-Wire-format OK? Eller föredrar Hub X-App-Signature-header
-rå JSON-body istället för token-strängen? (Header-varianten är
-marginellt enklare att debugga i nätverkspaneler.)
-org_id + role i 200-svaret — vill Hub returnera dem direkt,
-eller ska appen alltid gå via /org-info efter exchange?
-TTL 60s på HMAC-payload rimligt? Eller bara 30s för att minska
-klock-skew-risken?
-Audit: ska sso-exchange skriva en separat rad i
-hub.sso_audit, eller återanvända samma tabell som /sso-claim
-med en flow discriminator ("claim" | "exchange")?
-Secret-rotation: behöver vi stödja två aktiva secrets samtidigt
-(för zero-downtime-rotation), eller räcker hård rotation i koordinerat
-fönster?
+Changelog
+v1.0.0 (2026-06-07) — Initial stable release. Alla öppna frågor från
+v0.1 DRAFT besvarade av Hub (status/hub.md commit 35b8cc7):
+Wire-format: token-i-body bekräftat (mirrar launchpad).
+org_id + role returneras alltid i 200.
+TTL: 60s.
+Audit: återanvänd hub.sso_audit med flow-kolumn.
+Rotation: hård i v1.0, zero-downtime utvärderas i v1.1.
 Nästa steg
-Hub-teamet granskar, justerar oklarheter ovan, pushar v0.1 → v1.0
-i contracts/v1/sso-exchange.md (eller mergar in i sso.md v1.1).
-Hub deployar /sso-exchange enligt slutgiltig spec, registrerar
-TIPSPROMENAD_CALLBACK_URL + TIPSPROMENAD_EXCHANGE_SECRET.
+Tipspromenad pushar denna fil till contracts/v1/sso-exchange.md
+via /super-admin/docs-sync.
+Hub deployar /sso-exchange enligt v1.0, lägger flow-kolumn på
+hub.sso_audit, registrerar TIPSPROMENAD_CALLBACK_URL +
+TIPSPROMENAD_EXCHANGE_SECRET, delar secret med Tipspromenad-ägaren.
 Tipspromenad implementerar edge-funktion sso-from-hub +
 route /sso/callback + secret HUB_EXCHANGE_SECRET.
 End-to-end-smoke från Hub-UI → app, dokumenteras i båda
