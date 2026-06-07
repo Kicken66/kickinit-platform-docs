@@ -1,11 +1,12 @@
 Contract — SSO (Hub ⇄ produkt-appar)
-Version: 0.1 (DRAFT)
-Datum: 2026-06-06
-Status: DRAFT — utkast från Tipspromenad. Behöver Hub-granskning innan implementation startar på Hub-sidan.
+Version: 1.0.0 (FROZEN)
+Datum: 2026-06-07
+Status: FROZEN — v1.0.0 låst 2026-06-07. Implementation verifierad mot live Hub (/sso-claim) med RS256 + JWKS. Brytande ändringar kräver v2.
 Riktning: Tipspromenad / EventIT ⇄ Hub
 
 Versionshistorik
 Datum	Version	Ändring
+2026-06-07	1.0.0 FROZEN	Fryst efter end-to-end-verifiering: /sso-claim mintar RS256 Hub-JWT (kid hub-2026-06-07), publik JWKS exponerad på /api/public/jwks.json, audit-rad skrivs till hub.sso_audit. Inga brytande ändringar mot 0.1.
 2026-06-06	0.1 DRAFT	Första utkast. Definierar flöde B (claim) först, flöde A (issue/exchange) skissat men ej krävt för MVP.
 Syfte
 Produkt-apparna kör egen Supabase Auth i sina Lovable Cloud-instanser. Hub
