@@ -16,12 +16,15 @@ Publik JWKS-endpoint på `/api/public/jwks.json` (proxar Supabase Auth JWKS via 
 - Edge-funktion `org-info` deployad och verifierad.
 
 ## Pågående arbete
-(inga pågående uppgifter)
+- Hub-JWT signering (RS256, kid `hub-2026-06-07`) + edge-funktionen `sso-claim` deployad mot Tipspromenads JWKS-whitelist. Publik nyckel exponeras via `/api/public/jwks.json` tillsammans med Supabase Auth-nycklarna. Audit-tabell `hub.sso_audit` på plats. Avvaktar end-to-end-test mot Tipspromenad i staging innan `contracts/v1/sso.md` fryses till v1.0.0.
+- `public.profiles` + sync-trigger från `auth.users` (email citext) — används för email-baserad hub-user-lookup i `sso-claim`.
 
 ## Backlog
-- Egen Hub-signerad JWT för SSO (separat nyckelpar, JWKS rotering) — krävs när Tipspromenad/EventIT ska ta emot tokens från Hub-domän.
+- Frys `contracts/v1/sso.md` till v1.0.0 efter lyckad staging-claim.
+- Flöde A: `sso-issue` + `sso-exchange` + Hub-UI "Öppna Tipspromenad/EventIT".
+- Migrera `org-info` till att verifiera Hub-JWT (idag accepterar den Supabase Auth-JWT direkt).
 - Edge-funktioner: `provision-org`, `apply-purchase` (Stripe-webhook).
-- UI: "Mitt KickinIT", organisationsväljare, fakturor, medlemshantering, "Mina produkter".
+- UI: "Mitt KickinIT", organisationsväljare, fakturor, medlemshantering, "Mina produkter", token-revokering (audit-tabell finns).
 - Admin-UI för att skapa orgs/medlemmar/entitlements manuellt.
 - Launchpad pekar om provisioning till Hub.
 
