@@ -1,7 +1,7 @@
 # Contract — `org-info` (Hub → produkt-appar)
 
-**Version:** 1.0.0  
-**Datum:** 2026-06-06  
+**Version:** 1.1.0  
+**Datum:** 2026-06-08  
 **Riktning:** Tipspromenad / EventIT → Hub  
 **Endpoint:** `POST {HUB_FUNCTIONS_URL}/org-info`
 
@@ -10,6 +10,7 @@
 | Datum | Version | Ändring |
 |---|---|---|
 | 2026-06-06 | 1.0.0 | Första release. Hub-schema, JWKS-endpoint och `org-info` verifierade i produktion. DRAFT-tag borttagen. |
+| 2026-06-08 | 1.1.0 | Additivt: kända addon-nycklar (`results_email`, `member_lookup`, `paper_print`) exponeras även som top-level boolean-fält i `entitlements.<app>` utöver `addons[]`. Plan-implicit-regeln (`club`/`standard`/`association`) gäller. Bakåtkompatibelt — `addons[]` bibehålls. |
 
 ## Syfte
 
@@ -48,10 +49,13 @@ entitlements till relevant app. Saknas → returnera alla.
   "role": "org_admin",
   "entitlements": {
     "tipspromenad": {
-      "plan": "private",
+      "plan": "club",
       "rounds_remaining": 12,
       "days_remaining": 30,
-      "addons": ["sponsors", "lottery"]
+      "addons": ["results_email", "member_lookup", "paper_print", "sponsor_control"],
+      "results_email": true,
+      "member_lookup": true,
+      "paper_print": true
     },
     "eventit": {
       "plan": "trial",
@@ -65,6 +69,20 @@ entitlements till relevant app. Saknas → returnera alla.
 Fältet `cached_until` är en hint till klienten — sätt `staleTime` i
 React Query till `cached_until - now`. Servern svarar oavsett om klienten
 respekterar hinten eller inte.
+
+## Boolean addon-nycklar (v1.1.0)
+
+Utöver `addons[]`-arrayen exponerar Hub följande nycklar som top-level
+boolean-fält i `entitlements.<app>` när de är aktiva:
+
+| App | Nyckel | Källa |
+|---|---|---|
+| `tipspromenad` | `results_email` | `addons[]` innehåller `results_email` ELLER plan-implicit (`club`/`standard`/`association`) |
+| `tipspromenad` | `member_lookup` | `addons[]` innehåller `member_lookup` ELLER plan-implicit |
+| `tipspromenad` | `paper_print`   | `addons[]` innehåller `paper_print` ELLER plan-implicit |
+
+Apparna SKA läsa boolean-formen i ny kod. `addons[]`-arrayen behålls
+bakåtkompatibelt och får inte tas bort utan major-bump.
 
 ## Response 401
 
