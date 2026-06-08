@@ -35,6 +35,8 @@ Hub-sidan av Flöde B är **produktionsklar**. Tipspromenad kan nu byta sin app-
 ## org-info v1.1.0 — boolean addon-keys ✅ 2026-06-08
 Som svar på Tipspromenads `0005-hub-org-info-entitlements-gap.md`: `org-info` returnerar nu `results_email`, `member_lookup` och `paper_print` som top-level boolean-fält på `entitlements.tipspromenad` utöver `addons[]`-arrayen. Gäller både explicit-rader (booleanen härleds från `addons[]`-innehåll) och plan-implicit-fallback för `association` (alla tre = `true`) / `private` (alla tre = `false`). Bakåtkompatibelt — `addons[]` består. Kontraktet bumpat till v1.1.0 i kickinit-platform-docs.
 
+**Tipspromenad-bekräftelse 2026-06-08** (docs-commits `9f186a2` + `281a473`): Tipspromenad har flippat `HUB_ENTITLEMENTS_AUTHORITATIVE` och markerat 0005-gappet som **resolved** efter Hub-commits `20ccc7c` (status) + `6bbd714` (kontrakt v1.1.0). Shadow-diff = 0 över seedade orgs. Gappet är därmed stängt från båda sidor.
+
 
 ## Backlog
 - Edge-funktioner: `provision-org`, `apply-purchase` (Stripe-webhook).
