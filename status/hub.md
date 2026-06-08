@@ -7,7 +7,7 @@ Hub-projektet skapat. Egen Lovable Cloud-instans provisionerad. Auth (email/pass
 
 Edge-funktionen `org-info` deployad — verifierar nu Hub-utfärdad RS256-JWT (`iss=https://hub.kickinit.se`, `aud=tipspromenad|eventit`) och returnerar `{ user, org, role, entitlements, cached_until }` enligt `contracts/v1/org-info.md`. Felmodell: `missing_auth` (401), `invalid_token` (401), `no_org` (404).
 
-Kontraktet `contracts/v1/org-info.md` fryst till **v1.0.0** (DRAFT-flagga borttagen).
+Kontraktet `contracts/v1/org-info.md` bumpat till **v1.1.0** — addons-nycklarna `results_email`, `member_lookup`, `paper_print` exponeras nu även som top-level boolean-fält i `entitlements.tipspromenad` (additivt; `addons[]` behålls). Stänger Tipspromenads gap (migration `0005-hub-org-info-entitlements-gap.md`).
 
 Publik JWKS-endpoint på `/api/public/jwks.json` (proxar Supabase Auth JWKS via stabil Hub-URL).
 
@@ -31,6 +31,9 @@ Kod-utgivaren (`sso-issue`) fanns redan deployad från Flöde A-spåret — inge
 3. **`GET /org-info?app=tipspromenad`** med `Authorization: Bearer <hub_jwt>` → `200` med `{user, org:{id, slug:"hbk", name:"Hedareds BK", type:"association"}, role:"super_admin", entitlements:{tipspromenad:{plan, addons, rounds_remaining, days_remaining}}, cached_until}`.
 
 Hub-sidan av Flöde B är **produktionsklar**. Tipspromenad kan nu byta sin app-utfärdade SSO-payload mot en genuin Hub-JWT utan syntetiska koder.
+
+## org-info v1.1.0 — boolean addon-keys ✅ 2026-06-08
+Som svar på Tipspromenads `0005-hub-org-info-entitlements-gap.md`: `org-info` returnerar nu `results_email`, `member_lookup` och `paper_print` som top-level boolean-fält på `entitlements.tipspromenad` utöver `addons[]`-arrayen. Gäller både explicit-rader (booleanen härleds från `addons[]`-innehåll) och plan-implicit-fallback för `association` (alla tre = `true`) / `private` (alla tre = `false`). Bakåtkompatibelt — `addons[]` består. Kontraktet bumpat till v1.1.0 i kickinit-platform-docs.
 
 
 ## Backlog
