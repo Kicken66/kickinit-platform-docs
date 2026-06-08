@@ -37,6 +37,11 @@ Som svar på Tipspromenads `0005-hub-org-info-entitlements-gap.md`: `org-info` r
 
 **Tipspromenad-bekräftelse 2026-06-08** (docs-commits `9f186a2` + `281a473`): Tipspromenad har flippat `HUB_ENTITLEMENTS_AUTHORITATIVE` och markerat 0005-gappet som **resolved** efter Hub-commits `20ccc7c` (status) + `6bbd714` (kontrakt v1.1.0). Shadow-diff = 0 över seedade orgs. Gappet är därmed stängt från båda sidor.
 
+## EventIT-integration — Hub-sidan klar 2026-06-08
+`migration/0003-eventit-integration.md` pushat till platform-docs. Hub-sidan har allt som behövs: `appConfig("eventit")` läser `EVENTIT_AUTH_URL` / `EVENTIT_ANON_KEY` / `EVENTIT_CALLBACK_URL` / `EVENTIT_EXCHANGE_SECRET`; `sso-claim` / `sso-issue` / `sso-exchange` / `org-info` / `apply-purchase` accepterar `app:"eventit"`; "Öppna EventIT"-kortet finns på `/apps`; medlemskap via `members-registry` auto-claim. Väntar på: (1) EventIT Lovable-projekt skapas, (2) `EVENTIT_*`-secrets sätts på Hub, (3) EventIT addon-katalog spec:as → `entitlement_keys.md` + `org-info` v1.2.0, (4) end-to-end-verifiering.
+
+
+
 
 ## Backlog
 - Edge-funktioner: `provision-org`, `apply-purchase` (Stripe-webhook).
