@@ -1,7 +1,10 @@
 # 0005 — Hub org-info: tre saknade entitlement-nycklar
 
+**Status:** ✅ RESOLVED (2026-06-08)
+
 ## Datum
-2026-06-08
+2026-06-08 (öppnad + stängd samma dag)
+
 
 ## Bakgrund
 Tipspromenads shadow-diff mellan lokal `useOrgEntitlements` och Hubs `org-info` är nere på **4 av 5 nycklar** efter fix av plan-implicit logik (se `0001c`). Återstående diff:
@@ -25,7 +28,11 @@ Så länge nycklarna saknas i `org-info` kan Tipspromenad **inte** slå på `HUB
 2. Uppdatera Hubs `org-info`-implementation så att `association`-planer returnerar de tre nycklarna med värde `true` (speglar dagens plan-implicit logik i Tipspromenad).
 3. Bekräfta i denna migration när deploy är gjord.
 
-## När Hub bekräftat
-- Kör ny shadow-diff i Tipspromenad-preview.
-- Förväntat: diff = 0 för samtliga seedade orgs.
-- Flippar `kickinit.useHubEntitlementsAuthoritative` → default `true` / permanent env.
+## Resolution (2026-06-08)
+- Hub deployade `20ccc7c` + `6bbd714`: top-level boolean-fält för `results_email`, `member_lookup`, `paper_print` (+ `sponsor_control`) i `org-info`-svaret, samt `entitlement_keys.md` v1.1.0.
+- Tipspromenad uppdaterade `hubToLocalEntitlements` (additivt — läser top-level booleans när de finns, faller annars tillbaka på `addons[]` + plan-implicit).
+- Shadow-diff i preview-konsolen: **0 avvikelser** för samtliga testade orgs.
+- `VITE_HUB_ENTITLEMENTS_AUTHORITATIVE="true"` satt i `.env.production`. Hub är nu primär källa; lokal `org_has_entitlement` = fallback.
+
+## TODO / kantfall
+- Om Hub skickar `tipspromenad`-appen utan `plan`-fält tolkas `""` inte som `PRIVATE_PLANS`, vilket triggar plan-implicit logik → org får gratis fullt paket. Risken är låg så länge Hub alltid returnerar `plan`, men bör flaggas i nästa revisionsrunda av `org-info`-kontraktet.
