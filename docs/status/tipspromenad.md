@@ -73,12 +73,11 @@ inte de andra (Hub, EventIT). Delade kontrakt: se `docs/contracts/README.md`.
   `.env.local`. Motsvarande `kickinit.useHubEntitlementsAuthoritative`
   styr om Hub-entitlements ska vara primärkälla i `useOrgEntitlements`
   (default = shadow).
-- **Hub-entitlements i shadow-läge** (2026-06-07): `useOrgEntitlements`
-  läser parallellt från Hubs `org-info` när flaggan är på och loggar
-  `console.warn("[hub-entitlements] mismatch", …)` per (org, diff-sig).
-  Mappning lever i `src/integrations/hub/entitlementMapping.ts` —
-  **TODO**: publicera `entitlement_keys.md` i docs-repot så båda apparna
-  delar samma nyckeluppsättning.
+- **Hub-entitlements — shadow-läge avvecklad** (2026-06-08): `useOrgEntitlements`
+  använder Hub som primär källa (`HUB_ENTITLEMENTS_AUTHORITATIVE=true`);
+  lokal `org_has_entitlement` finns kvar som fallback om mapping saknas.
+  Shadow-jämförelse (`lastLoggedRef` + mismatch-warnings) borttagen.
+  `entitlement_keys.md` v1.1.0 publicerad i docs-repot.
 - **SSO-claim-verifiering 2026-06-07 — BLOCKERAD på Hub-sidan.**
   Toggle på i preview, claim körs, Hub svarar `401 invalid_token`.
   Rotorsak: `session.access_token` som supabase-js skickar är ibland
@@ -172,12 +171,14 @@ inte de andra (Hub, EventIT). Delade kontrakt: se `docs/contracts/README.md`.
   svarar med förväntad `404 code_not_found` vid syntetisk smoke-kod.
   Nonce-replay-skydd och felenvelopp bekräftade. Se
     `migration/0004-sso-exchange-smoke.md`.
-- **Hub org-info: tre saknade entitlement-nycklar påpekade**
-  (2026-06-08) — `results_email`, `member_lookup`, `paper_print` saknas i
-  Hubs `org-info`-svar trots att de är plan-implicita för `association`-planer
-  i Tipspromenad. Migration `0005-hub-org-info-entitlements-gap.md` skickad
-  till docs-repot; blockerar flip av `HUB_ENTITLEMENTS_AUTHORITATIVE` tills
-  Hub deployat motsvarande nycklar.
+ - **Hub org-info: tre saknade entitlement-nycklar påpekade + åtgärdade**
+   (2026-06-08) — `results_email`, `member_lookup`, `paper_print` saknades i
+   Hubs `org-info`-svar. Hub deployade `20ccc7c` + `6bbd714` med top-level
+   boolean-fält + `entitlement_keys.md` v1.1.0. Diff-check i preview-konsolen
+   verifierar **0 avvikelser** (sponsorControl, resultsEmail, memberLookup,
+   paperPrint alla matchar). `HUB_ENTITLEMENTS_AUTHORITATIVE` **flippad till
+   true** i `.env.production` (2026-06-08). Hub är nu primär källa för
+   entitlements; lokal `org_has_entitlement` = fallback om mapping saknas.
 
 
 
