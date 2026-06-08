@@ -34,5 +34,8 @@ Så länge nycklarna saknas i `org-info` kan Tipspromenad **inte** slå på `HUB
 - Shadow-diff i preview-konsolen: **0 avvikelser** för samtliga testade orgs.
 - `VITE_HUB_ENTITLEMENTS_AUTHORITATIVE="true"` satt i `.env.production`. Hub är nu primär källa; lokal `org_has_entitlement` = fallback.
 
-## TODO / kantfall
-- Om Hub skickar `tipspromenad`-appen utan `plan`-fält tolkas `""` inte som `PRIVATE_PLANS`, vilket triggar plan-implicit logik → org får gratis fullt paket. Risken är låg så länge Hub alltid returnerar `plan`, men bör flaggas i nästa revisionsrunda av `org-info`-kontraktet.
+## Plan-kantfall (stängt 2026-06-08)
+- **Tidigare risk:** om Hub skickade `tipspromenad`-appen utan `plan`-fält tolkades `""` inte som privat → plan-implicit kickade in och org fick gratis fullt add-on-paket.
+- **Fix:** `hubToLocalEntitlements` använder nu en **allowlist** (`IMPLICIT_PLANS = {association, club}`) istället för en negerad privat-lista. Saknad/okänd plan → inga implicita features (säker default). Explicit booleans och `addons[]` fungerar oförändrat.
+- **Verifierat:** `src/integrations/hub/entitlementMapping.test.ts` har två nya cases (saknad plan + okänd plan) som båda förväntar `false` på alla 4 nycklar utan explicit grant. 14/14 mapping-tester gröna.
+- **Kontraktsstatus:** Hub bör fortfarande alltid skicka `plan`-fält (kontraktkrav i `org-info.md` v1.1.0), men appen är nu robust mot regression.
