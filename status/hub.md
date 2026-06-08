@@ -23,10 +23,14 @@ Publik JWKS-endpoint på `/api/public/jwks.json` (proxar Supabase Auth JWKS via 
 - **`sso-exchange` v1.0.0 deployad** enligt `contracts/v1/sso-exchange.md` (commit `cb5afd8`). Implementationen migrerad från header-HMAC till token-i-body-format (`b64u(payload).b64u(hmac_sha256(secret, b64u(payload)))`). Payload-schema: `{ code, app, iat, exp, nonce }`, TTL ≤ 60s, nonce uuid v4. Returnerar `{ hub_jwt, expires_at, hub_user_id, email, org_id, role }`. Felkoder enligt v1.0-tabellen: `invalid_token` / `app_mismatch` / `token_expired` / `replay_detected` / `code_not_found` / `code_expired` / `code_consumed` / `internal_error`. `X-Correlation-Id` ekas som `request_id` i felresponse. Smoke-test mot deployad funktion: `{token:"abc.def"}` → 400 `invalid_token` / `payload_decode_failed` ✓.
 - **`hub.sso_audit` utökad för v1.0**: nya kolumner `flow` (`"claim" | "exchange"`), `nonce`, `code_hash`, `error_code`, `request_id`, `created_at`, `id` (surrogat-PK). `jti`/`hub_user_id`/`role`/`expires_at` nu nullable så att replay-reservationer och fel-rader kan loggas. Unikt index `sso_audit_exchange_nonce_uidx` på `(app, nonce) WHERE flow='exchange'` ger replay-skydd via INSERT-konflikt (`23505` → `replay_detected`).
 
-## Pågående arbete
-- Flöde B (`sso-exchange`) end-to-end: `TIPSPROMENAD_EXCHANGE_SECRET` konfigurerat och synkat. SSO E2E-test (`sso-e2e-test`) deployat och testat lokalt. Health-check ✓ (smoke-test mot deployad `/sso-exchange` med `{token:"abc.def"}` → 400 `invalid_token` / `payload_decode_failed` med korrekt felenvelopp inkl. `request_id`). `org-info` och `sso-claim` svarar `401 missing_auth` utan auth-header (förväntat).
-- **Tipspromenad-sidan verifierad 2026-06-08** (`status/tipspromenad.md` commit `4665a7a`): `sso-initiate` deployad, HMAC-SHA256-signering i v1.0-format (`b64u(payload).b64u(sig)`) validerar korrekt mot Hubs `/sso-exchange`. Hub svarar `404 code_not_found` vid smoke-anrop (förväntat — syntetisk kod). Nonce-replay-skydd och felenvelopp bekräftade från Tipspromenad-sidan.
-- **Återstår på Hub-sidan**: implementera riktig kod-utgivare (endpoint som mintar `sso_codes`-rader åt Tipspromenad så att en riktig kod kan växlas till `hub_jwt` end-to-end). Tills dess kan flödet bara verifieras med syntetiska koder.
+## Flöde B end-to-end ✅ verifierat 2026-06-08
+Kod-utgivaren (`sso-issue`) fanns redan deployad från Flöde A-spåret — ingen ny endpoint behövdes. Full genuin kedja körd mot deployad miljö:
+
+1. **`POST /sso-issue`** med Hub-användarens Supabase Auth-bearer (`{app:"tipspromenad"}`) → `200` med `sso_code` (256-bit, base64url), `expires_in: 60`, `redirect_url: https://app.kickinit.se/sso/callback?code=…`. SHA-256-hash av koden persisteras i `hub.sso_codes` med `hub_user_id`, `app`, `expires_at`.
+2. **`POST /sso-exchange`** med `{token: b64u(payload).b64u(hmac_sha256(TIPSPROMENAD_EXCHANGE_SECRET, b64u(payload)))}` där `payload = {code, app:"tipspromenad", iat, exp, nonce}` → `200` med `hub_jwt` (RS256, `iss=https://hub.kickinit.se`, `aud=tipspromenad`, 1h TTL), `hub_user_id`, `email`, `org_id`, `role`. Koden konsumerades atomiskt (`consumed_at` satt), audit-rad skriven i `hub.sso_audit` med `flow='exchange'`, nonce, `request_id`.
+3. **`GET /org-info?app=tipspromenad`** med `Authorization: Bearer <hub_jwt>` → `200` med `{user, org:{id, slug:"hbk", name:"Hedareds BK", type:"association"}, role:"super_admin", entitlements:{tipspromenad:{plan, addons, rounds_remaining, days_remaining}}, cached_until}`.
+
+Hub-sidan av Flöde B är **produktionsklar**. Tipspromenad kan nu byta sin app-utfärdade SSO-payload mot en genuin Hub-JWT utan syntetiska koder.
 
 
 ## Backlog
