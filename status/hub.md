@@ -1,5 +1,8 @@
 # Hub – status
 
+## Publicering
+Hub är publicerad 2026-06-09 på **https://kickinit-core-hub.lovable.app**. Detta är den stabila URL som syskonprojekt (Tipspromenad, EventIT) ska använda som `HUB_BASE_URL`. Eget domännamn (t.ex. `hub.kickinit.se`) kan kopplas senare via Projektinställningar → Domains; tills dess pekar `iss`-claim i Hub-JWT fortfarande på den logiska identifieraren `https://hub.kickinit.se` (konfigurerbar via `HUB_ISS`).
+
 ## Nuläge
 Hub-projektet skapat. Egen Lovable Cloud-instans provisionerad. Auth (email/password + Google) på plats. `user_roles` + `has_role` + `docs_sync_log` migrerade. Edge-funktionen `docs-sync` deployad. Admin-UI på `/super-admin/docs-sync`.
 
@@ -11,44 +14,14 @@ Kontraktet `contracts/v1/org-info.md` bumpat till **v1.1.0** — addons-nycklarn
 
 Publik JWKS-endpoint på `/api/public/jwks.json` (proxar Supabase Auth JWKS via stabil Hub-URL).
 
-## Klart
-- Kontrakt `org-info` v1.0.0 fruset och live.
-- Edge-funktion `org-info` deployad med Hub-JWT-verifiering.
-- Kontrakt `sso.md` v1.0.0 fryst.
-- Flöde B (`sso-claim`) deployad, RS256 + JWKS verifierad, audit-tabell `hub.sso_audit` skriver per claim.
-- `public.profiles` + sync-trigger från `auth.users` (email citext).
-- Members-import v1 (migration 0002): `hub.org_members_registry` + auto-claim-triggers (`tg_profiles_claim_registry` på `public.profiles`, `tg_registry_claim_existing` på `hub.org_members_registry`). Edge-funktion `members-registry` (super_admin-only: list_orgs / list / add / import_csv / remove). Admin-UI på `/super-admin/members`. Seed: kicken@kickinit.se som org_admin i hbk — auto-claimad av triggern (verifierat).
-- 0001c entitlement-seed (plan-implicit i stället för seedade rader): `org-info` synthesizar `entitlements.tipspromenad` när ingen explicit `hub.entitlements`-rad finns för orgen. `association` → `{ plan: "club", addons: [results_email, member_lookup, paper_print, sponsor_control], implicit: true }`. `private` → `{ plan: "standard", addons: [], implicit: true }` tills `apply-purchase` skapar en rad. Speglar `contracts/v1/entitlement_keys.md` v1.0.0 (88c1dda) och `migration/0001c-hub-entitlement-seed.md` (37ee35a). EventIT TBD.
-- **Flöde A (`org-info`) verifierat end-to-end från Tipspromenad** — statusdokument `0003-org-info-flode-a-live.md` pushat till kickinit-platform-docs (commit `7500816`). Tipspromenad bekräftar att Hub-utfärdad RS256-JWT valideras, `org-info` returnerar korrekt `{ user, org, role, entitlements }`, och hela flödet är produktionsklart.
-- **`sso-exchange` v1.0.0 deployad** enligt `contracts/v1/sso-exchange.md` (commit `cb5afd8`). Implementationen migrerad från header-HMAC till token-i-body-format (`b64u(payload).b64u(hmac_sha256(secret, b64u(payload)))`). Payload-schema: `{ code, app, iat, exp, nonce }`, TTL ≤ 60s, nonce uuid v4. Returnerar `{ hub_jwt, expires_at, hub_user_id, email, org_id, role }`. Felkoder enligt v1.0-tabellen: `invalid_token` / `app_mismatch` / `token_expired` / `replay_detected` / `code_not_found` / `code_expired` / `code_consumed` / `internal_error`. `X-Correlation-Id` ekas som `request_id` i felresponse. Smoke-test mot deployad funktion: `{token:"abc.def"}` → 400 `invalid_token` / `payload_decode_failed` ✓.
-- **`hub.sso_audit` utökad för v1.0**: nya kolumner `flow` (`"claim" | "exchange"`), `nonce`, `code_hash`, `error_code`, `request_id`, `created_at`, `id` (surrogat-PK). `jti`/`hub_user_id`/`role`/`expires_at` nu nullable så att replay-reservationer och fel-rader kan loggas. Unikt index `sso_audit_exchange_nonce_uidx` på `(app, nonce) WHERE flow='exchange'` ger replay-skydd via INSERT-konflikt (`23505` → `replay_detected`).
+## EventIT-integration — Hub-sidan klar 2026-06-08, e2e-verifierad 2026-06-09
+`migration/0003-eventit-integration.md` pushat till platform-docs.
 
-## Flöde B end-to-end ✅ verifierat 2026-06-08
-Kod-utgivaren (`sso-issue`) fanns redan deployad från Flöde A-spåret — ingen ny endpoint behövdes. Full genuin kedja körd mot deployad miljö:
+**`EVENTIT_*`-secrets satta på Hub 2026-06-09** (alla fyra: `EVENTIT_AUTH_URL`, `EVENTIT_ANON_KEY`, `EVENTIT_CALLBACK_URL`, `EVENTIT_EXCHANGE_SECRET`).
 
-1. **`POST /sso-issue`** med Hub-användarens Supabase Auth-bearer (`{app:"tipspromenad"}`) → `200` med `sso_code` (256-bit, base64url), `expires_in: 60`, `redirect_url: https://app.kickinit.se/sso/callback?code=…`. SHA-256-hash av koden persisteras i `hub.sso_codes` med `hub_user_id`, `app`, `expires_at`.
-2. **`POST /sso-exchange`** med `{token: b64u(payload).b64u(hmac_sha256(TIPSPROMENAD_EXCHANGE_SECRET, b64u(payload)))}` där `payload = {code, app:"tipspromenad", iat, exp, nonce}` → `200` med `hub_jwt` (RS256, `iss=https://hub.kickinit.se`, `aud=tipspromenad`, 1h TTL), `hub_user_id`, `email`, `org_id`, `role`. Koden konsumerades atomiskt (`consumed_at` satt), audit-rad skriven i `hub.sso_audit` med `flow='exchange'`, nonce, `request_id`.
-3. **`GET /org-info?app=tipspromenad`** med `Authorization: Bearer <hub_jwt>` → `200` med `{user, org:{id, slug:"hbk", name:"Hedareds BK", type:"association"}, role:"super_admin", entitlements:{tipspromenad:{plan, addons, rounds_remaining, days_remaining}}, cached_until}`.
+**End-to-end-verifiering 2026-06-09** via `sso-e2e-test` med `{app:"eventit"}` → samtliga steg gröna: `sso_issue`, `sign_exchange_token`, `sso_exchange` (Hub-JWT, `aud=eventit`, `org_id=hbk`, `role=super_admin`), alla JWT-checks `true` (alg_RS256, has_kid `hub-2026-06-07`, iss_present, aud_matches_app, exp_future, sub_matches_caller, email_matches, has_jti), `org-info?app=eventit` → `entitlements.eventit = { plan:"trial", events_remaining:1, addons:[], results_email:false, member_lookup:false, paper_print:false }` (plan-implicit fallback; EventIT addon-katalog ännu inte spec:ad).
 
-Hub-sidan av Flöde B är **produktionsklar**. Tipspromenad kan nu byta sin app-utfärdade SSO-payload mot en genuin Hub-JWT utan syntetiska koder.
-
-## org-info v1.1.0 — boolean addon-keys ✅ 2026-06-08
-Som svar på Tipspromenads `0005-hub-org-info-entitlements-gap.md`: `org-info` returnerar nu `results_email`, `member_lookup` och `paper_print` som top-level boolean-fält på `entitlements.tipspromenad` utöver `addons[]`-arrayen. Gäller både explicit-rader (booleanen härleds från `addons[]`-innehåll) och plan-implicit-fallback för `association` (alla tre = `true`) / `private` (alla tre = `false`). Bakåtkompatibelt — `addons[]` består. Kontraktet bumpat till v1.1.0 i kickinit-platform-docs.
-
-**Tipspromenad-bekräftelse 2026-06-08** (docs-commits `9f186a2` + `281a473`): Tipspromenad har flippat `HUB_ENTITLEMENTS_AUTHORITATIVE` och markerat 0005-gappet som **resolved** efter Hub-commits `20ccc7c` (status) + `6bbd714` (kontrakt v1.1.0). Shadow-diff = 0 över seedade orgs. Gappet är därmed stängt från båda sidor.
-
-## EventIT-integration — Hub-sidan klar 2026-06-08
-`migration/0003-eventit-integration.md` pushat till platform-docs. Hub-sidan har allt som behövs: `appConfig("eventit")` läser `EVENTIT_AUTH_URL` / `EVENTIT_ANON_KEY` / `EVENTIT_CALLBACK_URL` / `EVENTIT_EXCHANGE_SECRET`; `sso-claim` / `sso-issue` / `sso-exchange` / `org-info` / `apply-purchase` accepterar `app:"eventit"`; "Öppna EventIT"-kortet finns på `/apps`; medlemskap via `members-registry` auto-claim. Väntar på: (1) EventIT Lovable-projekt skapas, (2) `EVENTIT_*`-secrets sätts på Hub, (3) EventIT addon-katalog spec:as → `entitlement_keys.md` + `org-info` v1.2.0, (4) end-to-end-verifiering.
-
-
-
-
-## Backlog
-- Edge-funktioner: `provision-org`, `apply-purchase` (Stripe-webhook).
-- UI: organisationsväljare, fakturor, medlemshantering, token-revokering (audit-tabell finns).
-- Admin-UI för att skapa orgs/medlemmar/entitlements manuellt.
-- Launchpad pekar om provisioning till Hub.
-
+Hub-sidan av EventIT-integrationen är **produktionsklar**. Återstår på EventIT-projektets sida: implementera `/sso/callback` som POSTar till `sso-exchange`, etablera lokal session, validera Hub-JWT via JWKS (`https://kickinit-core-hub.lovable.app/api/public/jwks.json`), och anropa `org-info`. Plus: spec:a EventIT addon-katalog → `entitlement_keys.md` + `org-info` v1.2.0.
 
 ## Beroenden mot andra projekt
 - **Tipspromenad** och **EventIT** verifierar Hub-utfärdade JWT via JWKS (`/api/public/jwks.json`), hämtar org/entitlements via `org-info`.
